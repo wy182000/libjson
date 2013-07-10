@@ -29,6 +29,7 @@
 	#define LIBJSON_COPY_CTOR getCopyCtorCounter() += 1
 	#define LIBJSON_ASSIGNMENT getAssignmentCounter() += 1
 	#define LIBJSON_DTOR getDtorCounter() += 1
+  #define LIBJSON_STATS_CLEAR { JSONStats s; }
 	
 	#include <map>
 	#include <sstream>
@@ -62,7 +63,10 @@
 			getCounter_m _dTor;
 		};
 		static int setCallbacks(getCounter_m cTor, getCounter_m ccTor, getCounter_m assign, getCounter_m dtor, const std::string & name){
-			getMapper()[cTor] = new objectStructure (cTor, ccTor, assign, dtor, name);
+			std::map<getCounter_m, objectStructure*> & mymap = getMapper();
+      if (mymap.find(cTor) == mymap.end()) {
+        mymap[cTor] = new objectStructure (cTor, ccTor, assign, dtor, name);
+      }
 			return 0;
 		}
 		
