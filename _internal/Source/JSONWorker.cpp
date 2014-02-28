@@ -343,6 +343,43 @@ json_char JSONWorker::Hex(const json_char * & pos) json_nothrow {
     }
 #endif
 
+static void hex_to_utf8(json_string & res, const json_char * & pos, const json_char * const end) {
+  unsigned codepoint = 0;
+  for (int i = 0; i < 4; i++) {
+    pos++;
+    codepoint <<= 4;
+    codepoint += *pos;
+    byte c = *pos;
+    if (c >= '0' && c <= '9')
+      codepoint -= '0';
+    else if (c >= 'A' && c <= 'F')
+      codepoint -= 'A' - 10;
+    else if (c >= 'a' && c <= 'f')
+      codepoint -= 'a' - 10;
+    else 
+      JSON_ASSERT_SAFE(false, "json incorrect hex digit after \\u escape", return;);
+  }
+
+  if (codepoint <= 0x7F) 
+    res += codepoint & 0xFF;
+  else if (codepoint <= 0x7FF) {
+    res += 0xC0 | ((codepoint >> 6) & 0xFF);
+    res += 0x80 | ((codepoint & 0x3F));
+  }
+  else if (codepoint <= 0xFFFF) {
+    res += 0xE0 | ((codepoint >> 12) & 0xFF);
+    res += 0x80 | ((codepoint >> 6) & 0x3F);
+    res += 0x80 | (codepoint & 0x3F);
+  }
+  else {
+    JSON_ASSERT_SAFE(codepoint <= 0x10FFFF, "json incorrent codepoint", return;);
+    res += 0xF0 | ((codepoint >> 18) & 0xFF);
+    res += 0x80 | ((codepoint >> 12) & 0x3F);
+    res += 0x80 | ((codepoint >> 6) & 0x3F);
+    res += 0x80 | (codepoint & 0x3F);
+  }
+}
+
 void JSONWorker::SpecialChar(const json_char * & pos, const json_char * const end, json_string & res) json_nothrow {
 	JSON_ASSERT_SAFE(pos != end, JSON_TEXT("Special char termantion"), return;);
     /*
@@ -381,7 +418,8 @@ void JSONWorker::SpecialChar(const json_char * & pos, const json_char * const en
 		  #ifdef JSON_UNICODE
 			 UTF(pos, res, end);
 		  #else
-			 res += UTF8(pos, end);
+			 //res += UTF8(pos, end);
+       hex_to_utf8(res, pos, end);
 		  #endif
 		  break;
 	   #ifndef JSON_STRICT
